@@ -1,0 +1,8 @@
+$vpcid = aws ec2 describe-vpcs --query 'Vpcs[].VpcId' --output text
+aws logs create-log-group --log-group-name $vpcid-logs
+aws iam create-role --role-name $vpcid-flow-role --assume-role-policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"vpc-flow-logs.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+aws iam create-policy --policy-name $vpcid-flow-policy --policy-document '{"Version":"2012-10-17","Statement":[{"Action":["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents","logs:DescribeLogGroups","logs:DescribeLogStreams"],"Effect":"Allow","Resource":"*"}]}'
+$policyarn = aws iam list-policies --query "Policies[?PolicyName=='$vpcid-flow-policy'].Arn" --output text
+aws iam attach-role-policy --role-name "$vpcid-flow-role" --policy-arn $policyarn
+$rolearn = aws iam get-role --role-name "$vpcid-flow-role" --query 'Role.Arn' --output text
+aws ec2 create-flow-logs --deliver-logs-permission-arn $rolearn --log-group-name $vpcid-logs --resource-ids $vpcid --resource-type VPC --traffic-type ALL
